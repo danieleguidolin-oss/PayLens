@@ -20,6 +20,15 @@ Palette scura (nero + oro), font Space Grotesk / Inter / IBM Plex Mono, per un t
 
 Apri `index.html` in un browser — è una singola pagina statica, nessuna build richiesta.
 
+## Installarla come app sul telefono
+
+Il progetto è configurato come PWA (manifest + service worker + icone), quindi una volta pubblicato su GitHub Pages puoi installarlo come un'app vera:
+
+- **Android (Chrome)**: apri il link, tocca il menu (⋮) → "Aggiungi a schermata Home" / "Installa app".
+- **iPhone (Safari)**: apri il link, tocca l'icona Condividi → "Aggiungi a Home".
+
+Resta comunque solo il mockup grafico — nessun dato reale viene caricato o elaborato.
+
 ## Prossimi passi
 
 - Estrazione testo dai PDF (i cedolini hanno quasi sempre testo selezionabile, non serve OCR in questa fase)
