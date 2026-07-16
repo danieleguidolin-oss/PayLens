@@ -1,0 +1,404 @@
+<!DOCTYPE html>
+<html lang="it">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Decoder — mockup v2</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link href="https://fonts.googleapis.com/css2?family=Space+Grotesk:wght@500;600;700&family=Inter:wght@400;500;600;700&family=IBM+Plex+Mono:wght@500;600&display=swap" rel="stylesheet">
+<style>
+  :root{
+    --bg:#0B0B0E;
+    --panel:#17171C;
+    --panel-2:#1F1F26;
+    --line:#2C2C34;
+    --ink:#F3F1EA;
+    --ink-soft:#9A98A6;
+    --gold:#E3B24C;
+    --gold-deep:#B5872F;
+    --ice:#7FD4E8;
+    --coral:#FF6B6B;
+    --mint:#39D98A;
+    --radius:20px;
+  }
+  *{box-sizing:border-box; margin:0; padding:0;}
+  body{
+    background:#050506;
+    min-height:100vh;
+    display:flex;
+    align-items:center;
+    justify-content:center;
+    padding:40px 16px;
+    font-family:'Inter',sans-serif;
+  }
+  .page-label{
+    position:fixed; top:24px; left:50%; transform:translateX(-50%);
+    font-family:'Space Grotesk',sans-serif; font-weight:600; letter-spacing:.08em;
+    text-transform:uppercase; font-size:11px; color:#6B6974;
+  }
+  .phone{
+    width:390px;
+    height:812px;
+    background:var(--bg);
+    border-radius:44px;
+    border:10px solid #000;
+    box-shadow:0 40px 80px -20px rgba(0,0,0,.7), 0 0 0 1px #1a1a1a;
+    position:relative;
+    overflow:hidden;
+    display:flex;
+    flex-direction:column;
+  }
+  .notch{
+    position:absolute; top:0; left:50%; transform:translateX(-50%);
+    width:120px; height:24px; background:#000; border-radius:0 0 16px 16px; z-index:20;
+  }
+  .screens{ flex:1; position:relative; overflow:hidden; }
+  .screen{
+    position:absolute; inset:0;
+    padding:56px 22px 20px;
+    display:flex; flex-direction:column;
+    opacity:0; transform:translateX(24px);
+    pointer-events:none;
+    transition:opacity .38s ease, transform .38s ease;
+    overflow-y:auto;
+  }
+  .screen.active{ opacity:1; transform:translateX(0); pointer-events:auto; }
+
+  .eyebrow{
+    font-family:'IBM Plex Mono',monospace; font-size:10.5px; font-weight:600;
+    letter-spacing:.14em; color:var(--gold); text-transform:uppercase;
+    margin-bottom:10px; display:flex; align-items:center; gap:7px;
+  }
+  .eyebrow::before{ content:''; width:14px; height:1px; background:var(--gold); }
+  h1{
+    font-family:'Space Grotesk',sans-serif; font-size:27px; line-height:1.18;
+    color:var(--ink); margin-bottom:10px; font-weight:700; letter-spacing:-.01em;
+  }
+  .sub{ font-size:13.5px; color:var(--ink-soft); line-height:1.55; margin-bottom:26px; max-width:31ch; }
+
+  .logo-row{ display:flex; align-items:center; gap:10px; margin-bottom:22px; }
+  .logo-mark{
+    width:34px; height:34px; border-radius:10px; background:var(--gold);
+    display:flex; align-items:center; justify-content:center;
+    font-family:'Space Grotesk',sans-serif; font-weight:700; font-size:14px; color:#151208;
+  }
+  .logo-word{ font-family:'Space Grotesk',sans-serif; font-weight:700; font-size:16px; color:var(--ink); }
+  .logo-word em{ font-style:normal; color:var(--gold); }
+
+  /* Screen 1 — CCNL select button (single search bar lives in the overlay) */
+  .select-trigger{
+    display:flex; align-items:center; justify-content:center; gap:8px;
+    background:var(--panel-2); border:1px solid var(--gold-deep); border-radius:14px;
+    padding:15px 16px; cursor:pointer; margin-bottom:28px; transition:border-color .15s;
+  }
+  .select-trigger:hover{ border-color:var(--gold); }
+  .select-trigger.filled{ background:var(--panel); border-color:var(--line); }
+  .select-trigger.filled .select-trigger-text{ color:var(--ink); font-weight:600; }
+  .select-trigger-text{ font-size:13.5px; color:var(--gold); font-weight:600; }
+  .chevron{ color:var(--gold); font-size:13px; }
+  .spacer{ flex:1; }
+
+  .ccnl-overlay{
+    position:absolute; inset:0; background:var(--bg); z-index:30;
+    display:flex; flex-direction:column; padding:24px 22px 20px;
+    transform:translateY(100%); transition:transform .32s cubic-bezier(.2,.9,.3,1);
+  }
+  .ccnl-overlay.open{ transform:translateY(0); }
+  .ccnl-head{ display:flex; align-items:center; justify-content:space-between; margin-bottom:18px; }
+  .ccnl-title{ font-family:'Space Grotesk',sans-serif; font-weight:700; font-size:16px; color:var(--ink); }
+  .ccnl-close{
+    width:30px; height:30px; border-radius:50%; background:var(--panel); border:1px solid var(--line);
+    color:var(--ink-soft); display:flex; align-items:center; justify-content:center; cursor:pointer; font-size:14px;
+  }
+  .ccnl-search{
+    display:flex; align-items:center; gap:9px; background:var(--panel); border:1px solid var(--line);
+    border-radius:12px; padding:12px 14px; margin-bottom:14px;
+  }
+  .ccnl-search input{
+    flex:1; background:none; border:none; outline:none; color:var(--ink);
+    font-family:'Inter',sans-serif; font-size:13.5px;
+  }
+  .ccnl-search input::placeholder{ color:#5C5A66; }
+  .ccnl-search svg{ flex-shrink:0; }
+  .ccnl-list{ flex:1; overflow-y:auto; display:flex; flex-direction:column; }
+  .ccnl-row{
+    padding:13px 4px; font-size:13.5px; color:var(--ink); border-bottom:1px solid var(--line);
+    cursor:pointer; transition:color .15s;
+  }
+  .ccnl-row:hover{ color:var(--gold); }
+  .ccnl-row.unknown{ color:var(--ice); font-style:italic; border-bottom:1px solid var(--gold-deep); margin-bottom:6px; }
+  .ccnl-empty{ color:var(--ink-soft); font-size:12.5px; padding:16px 4px; text-align:center; }
+  .btn-primary{
+    font-family:'Space Grotesk',sans-serif; font-weight:700; font-size:14.5px;
+    background:var(--gold); color:#151208; border:none; border-radius:16px;
+    padding:16px; cursor:pointer; width:100%; letter-spacing:.01em;
+    transition:transform .12s ease, filter .12s ease;
+  }
+  .btn-primary:active{ transform:scale(.98); }
+  .btn-primary.disabled{ background:var(--panel-2); color:#57565F; pointer-events:none; }
+
+  /* Screen 2 — upload */
+  .dropzone{
+    border:1px dashed var(--line); border-radius:var(--radius); background:var(--panel);
+    flex:1; display:flex; flex-direction:column; align-items:center; justify-content:center;
+    gap:14px; margin-bottom:20px; cursor:pointer; transition:border-color .15s;
+    min-height:220px;
+  }
+  .dropzone:hover{ border-color:var(--gold-deep); }
+  .plus{
+    width:50px; height:50px; border-radius:50%; background:var(--panel-2);
+    border:1px solid var(--gold-deep);
+    display:flex; align-items:center; justify-content:center;
+    font-family:'Space Grotesk',sans-serif; font-size:24px; color:var(--gold); font-weight:700;
+  }
+  .dz-text{ font-weight:600; font-size:14px; color:var(--ink); }
+  .dz-sub{ font-size:12px; color:var(--ink-soft); }
+  .formats{ display:flex; gap:8px; margin-top:2px; }
+  .format-pill{
+    font-family:'IBM Plex Mono',monospace; font-size:9.5px; font-weight:600;
+    background:var(--bg); border:1px solid var(--line); border-radius:8px;
+    padding:3px 8px; color:var(--ink-soft);
+  }
+  .privacy-note{
+    display:flex; align-items:flex-start; gap:9px; font-size:11.5px; color:var(--ink-soft);
+    background:var(--panel); border:1px solid var(--line); border-radius:14px; padding:12px 14px; margin-bottom:20px;
+  }
+  .privacy-note .dot{ color:var(--mint); }
+
+  /* Screen 3 — decoder */
+  .ledger{
+    background:var(--panel); border:1px solid var(--line); border-radius:18px; padding:18px 16px; margin-bottom:34px;
+    position:relative;
+  }
+  .ledger-row{
+    display:flex; justify-content:space-between; align-items:center;
+    font-family:'IBM Plex Mono',monospace; font-size:11.5px; color:var(--ink-soft);
+    padding:7px 0; border-bottom:1px solid var(--line);
+  }
+  .ledger-row:last-child{ border-bottom:none; font-weight:600; color:var(--ink); padding-top:12px; }
+  .ledger-row.flag{ color:var(--gold); font-weight:600; position:relative; }
+  .ledger-row .val{ color:inherit; }
+
+  /* signature element: docket tag pinned by a gold leader line */
+  .tag-wrap{
+    position:absolute; right:-13px; top:71px; display:flex; align-items:center;
+  }
+  .leader{
+    width:22px; height:1px; background:var(--gold-deep);
+  }
+  .tag{
+    width:176px; background:var(--panel-2); border:1px solid var(--gold-deep); border-left:3px solid var(--gold);
+    border-radius:2px 10px 10px 2px; padding:11px 12px;
+    font-size:11px; line-height:1.45; color:var(--ink); font-weight:500;
+    opacity:0; transform:translateX(-8px);
+    transition:opacity .35s ease, transform .4s cubic-bezier(.2,1,.4,1);
+    transition-delay:.35s;
+  }
+  .screen.active .tag{ opacity:1; transform:translateX(0); }
+  .tag em{ font-style:normal; color:var(--gold); font-weight:600; }
+
+  .chat{ display:flex; flex-direction:column; gap:10px; }
+  .bubble{
+    max-width:82%; padding:11px 14px; border-radius:16px; font-size:13px; line-height:1.5;
+  }
+  .bubble.user{
+    align-self:flex-end; background:var(--gold); color:#151208; font-weight:500;
+    border-bottom-right-radius:4px;
+  }
+  .bubble.ai{
+    align-self:flex-start; background:var(--panel); color:var(--ink);
+    border:1px solid var(--line); border-bottom-left-radius:4px;
+  }
+  .bubble.ai b{ color:var(--coral); font-weight:600; }
+  .bubble.ai .ok{ color:var(--mint); font-weight:600; }
+
+  .tabbar{
+    display:flex; border-top:1px solid var(--line); background:var(--bg);
+  }
+  .tab{
+    flex:1; text-align:center; padding:14px 4px 20px; cursor:pointer;
+    font-family:'Space Grotesk',sans-serif; font-size:10px; font-weight:600;
+    color:#57565F; letter-spacing:.04em; text-transform:uppercase;
+    transition:color .15s;
+  }
+  .tab.active{ color:var(--ink); }
+  .tab-dot{
+    width:5px; height:5px; border-radius:50%; background:var(--line); margin:0 auto 6px;
+    transition:background .15s, box-shadow .15s;
+  }
+  .tab.active .tab-dot{ background:var(--gold); box-shadow:0 0 0 3px rgba(227,178,76,.18); }
+</style>
+</head>
+<body>
+
+<div class="page-label">busta paga decoder — v2, palette scura</div>
+
+<div class="phone">
+  <div class="notch"></div>
+  <div class="screens">
+
+    <!-- SCREEN 1 -->
+    <div class="screen active" id="s1">
+      <div class="logo-row">
+        <div class="logo-mark">PL</div>
+        <span class="logo-word">Pay<em>Lens</em></span>
+      </div>
+      <h1>Con che contratto lavori?</h1>
+      <p class="sub">Ogni CCNL calcola ferie, ROL e voci in modo diverso. Dicci il tuo, così leggiamo la busta paga come si deve.</p>
+      <div class="select-trigger" id="ccnlTrigger">
+        <span class="select-trigger-text" id="ccnlTriggerText">Scegli il tuo CCNL</span>
+        <span class="chevron">→</span>
+      </div>
+      <div class="spacer"></div>
+      <button class="btn-primary disabled" id="btn1">Continua</button>
+
+      <div class="ccnl-overlay" id="ccnlOverlay">
+        <div class="ccnl-head">
+          <span class="ccnl-title">Seleziona il contratto</span>
+          <div class="ccnl-close" id="ccnlClose">✕</div>
+        </div>
+        <div class="ccnl-search">
+          <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="#5C5A66" stroke-width="2"><circle cx="11" cy="11" r="7"/><line x1="21" y1="21" x2="16.65" y2="16.65"/></svg>
+          <input type="text" id="ccnlSearch" placeholder="Cerca il tuo CCNL…" autocomplete="off">
+        </div>
+        <div class="ccnl-list" id="ccnlList"></div>
+      </div>
+    </div>
+
+    <!-- SCREEN 2 -->
+    <div class="screen" id="s2">
+      <div class="eyebrow">Carica il documento</div>
+      <h1>Carica il tuo cedolino.</h1>
+      <p class="sub">Per ora solo PDF — foto e screenshot arrivano dopo.</p>
+      <div class="dropzone" id="dropzone">
+        <div class="plus">+</div>
+        <div class="dz-text">Tocca per caricare il PDF</div>
+        <div class="dz-sub">o trascinalo qui</div>
+        <div class="formats">
+          <span class="format-pill">PDF</span>
+        </div>
+      </div>
+      <div class="privacy-note"><span class="dot">●</span> Il documento resta tuo: viene letto solo per rispondere alle tue domande.</div>
+      <button class="btn-primary" id="btn2">Ho caricato la busta paga</button>
+    </div>
+
+    <!-- SCREEN 3 -->
+    <div class="screen" id="s3">
+      <div class="eyebrow">Luglio 2026</div>
+      <h1>Ecco cosa dice.</h1>
+      <div class="ledger">
+        <div class="ledger-row"><span>RETRIBUZIONE LORDA</span><span class="val">1.850,00</span></div>
+        <div class="ledger-row"><span>STRAORDINARI</span><span class="val">0,00</span></div>
+        <div class="ledger-row flag"><span>ROL RESIDUI</span><span class="val">4,5 h</span></div>
+        <div class="ledger-row"><span>FERIE RESIDUE</span><span class="val">12,0 gg</span></div>
+        <div class="ledger-row"><span>NETTO IN BUSTA</span><span class="val">1.412,37</span></div>
+        <div class="tag-wrap">
+          <div class="leader"></div>
+          <div class="tag">Hai <em>4,5 ore</em> di permesso da smaltire entro fine anno — occhio alle scadenze del tuo CCNL.</div>
+        </div>
+      </div>
+      <div class="chat">
+        <div class="bubble user">Perché ho preso meno questo mese?</div>
+        <div class="bubble ai">Rispetto a giugno mancano <b>63 €</b> di straordinari e c'è stata una giornata di malattia non retribuita al 100%. Il resto <span class="ok">torna</span>.</div>
+      </div>
+    </div>
+
+  </div>
+
+  <div class="tabbar">
+    <div class="tab active" data-target="s1"><div class="tab-dot"></div>Contratto</div>
+    <div class="tab" data-target="s2"><div class="tab-dot"></div>Documento</div>
+    <div class="tab" data-target="s3"><div class="tab-dot"></div>Decoder</div>
+  </div>
+</div>
+
+<script>
+  const screens = document.querySelectorAll('.screen');
+  const tabs = document.querySelectorAll('.tab');
+
+  function goTo(id){
+    screens.forEach(s => s.classList.toggle('active', s.id === id));
+    tabs.forEach(t => t.classList.toggle('active', t.dataset.target === id));
+  }
+
+  tabs.forEach(t => t.addEventListener('click', () => goTo(t.dataset.target)));
+
+  const btn1 = document.getElementById('btn1');
+  const UNKNOWN = 'Non conosco il mio contratto';
+  const CCNL = [
+    'Agenzie di somministrazione lavoro',
+    'Agricoltura e florovivaismo',
+    'Alimentare industria',
+    'Autotrasporto merci e logistica',
+    'Chimico farmaceutico',
+    'Commercio e terziario',
+    'Cooperative sociali',
+    'Credito (bancario, ABI)',
+    'Edilizia artigianato',
+    'Edilizia industria',
+    'Enti locali (funzioni locali)',
+    'Grafici ed editoria',
+    'Gomma e materie plastiche',
+    'Istruzione e scuola privata',
+    'Legno e arredamento',
+    'Metalmeccanico industria',
+    'Metalmeccanico PMI (Confapi)',
+    'Multiservizi e pulizie',
+    'Panificazione e pasticceria',
+    'Pubblico impiego (funzioni centrali)',
+    'Sanità privata',
+    'Studi professionali',
+    'Tessile e abbigliamento',
+    'Turismo e pubblici esercizi',
+    'Vigilanza privata'
+  ];
+
+  const trigger = document.getElementById('ccnlTrigger');
+  const triggerText = document.getElementById('ccnlTriggerText');
+  const overlay = document.getElementById('ccnlOverlay');
+  const closeBtn = document.getElementById('ccnlClose');
+  const searchInput = document.getElementById('ccnlSearch');
+  const listEl = document.getElementById('ccnlList');
+
+  function renderList(query){
+    const q = (query || '').trim().toLowerCase();
+    const filtered = CCNL.filter(name => name.toLowerCase().includes(q));
+    let html = `<div class="ccnl-row unknown" data-value="${UNKNOWN}">${UNKNOWN}</div>`;
+    if(filtered.length){
+      html += filtered.map(name => `<div class="ccnl-row" data-value="${name}">${name}</div>`).join('');
+    } else {
+      html += `<div class="ccnl-empty">Nessun contratto trovato</div>`;
+    }
+    listEl.innerHTML = html;
+    listEl.querySelectorAll('.ccnl-row[data-value]').forEach(row => {
+      row.addEventListener('click', () => selectCcnl(row.dataset.value));
+    });
+  }
+
+  function selectCcnl(name){
+    triggerText.textContent = name;
+    trigger.classList.add('filled');
+    btn1.classList.remove('disabled');
+    closeOverlay();
+  }
+
+  function openOverlay(){
+    overlay.classList.add('open');
+    searchInput.value = '';
+    renderList('');
+    setTimeout(() => searchInput.focus(), 250);
+  }
+  function closeOverlay(){ overlay.classList.remove('open'); }
+
+  trigger.addEventListener('click', openOverlay);
+  closeBtn.addEventListener('click', closeOverlay);
+  searchInput.addEventListener('input', () => renderList(searchInput.value));
+
+  btn1.addEventListener('click', () => { if(!btn1.classList.contains('disabled')) goTo('s2'); });
+
+  document.getElementById('btn2').addEventListener('click', () => goTo('s3'));
+  document.getElementById('dropzone').addEventListener('click', () => goTo('s3'));
+</script>
+
+</body>
+</html>
