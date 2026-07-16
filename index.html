@@ -3,7 +3,15 @@
 <head>
 <meta charset="UTF-8">
 <meta name="viewport" content="width=device-width, initial-scale=1.0">
-<title>Decoder — mockup v2</title>
+<title>PayLens</title>
+<link rel="manifest" href="manifest.json">
+<meta name="theme-color" content="#0B0B0E">
+<meta name="mobile-web-app-capable" content="yes">
+<meta name="apple-mobile-web-app-capable" content="yes">
+<meta name="apple-mobile-web-app-status-bar-style" content="black-translucent">
+<meta name="apple-mobile-web-app-title" content="PayLens">
+<link rel="icon" href="icon-192.png" type="image/png">
+<link rel="apple-touch-icon" href="icon-192.png">
 <link rel="preconnect" href="https://fonts.googleapis.com">
 <link href="https://fonts.googleapis.com/css2?family=Space+Grotesk:wght@500;600;700&family=Inter:wght@400;500;600;700&family=IBM+Plex+Mono:wght@500;600&display=swap" rel="stylesheet">
 <style>
@@ -173,6 +181,8 @@
     min-height:220px;
   }
   .dropzone:hover{ border-color:var(--gold-deep); }
+  .dropzone.filled{ border-style:solid; border-color:var(--mint); }
+  .dropzone.filled .plus{ background:var(--mint); color:#0B0B0E; }
   .plus{
     width:50px; height:50px; border-radius:50%; background:var(--panel-2);
     border:1px solid var(--gold-deep);
@@ -406,15 +416,15 @@
       <h1>Carica il tuo cedolino.</h1>
       <p class="sub">Per ora solo PDF — foto e screenshot arrivano dopo.</p>
       <div class="dropzone" id="dropzone">
-        <div class="plus">+</div>
-        <div class="dz-text">Tocca per caricare il PDF</div>
-        <div class="dz-sub">o trascinalo qui</div>
-        <div class="formats">
+        <div class="plus" id="dzIcon">+</div>
+        <div class="dz-text" id="dzText">Tocca per caricare il PDF</div>
+        <div class="dz-sub" id="dzSub">o trascinalo qui</div>
+        <div class="formats" id="dzFormats">
           <span class="format-pill">PDF</span>
         </div>
       </div>
       <div class="privacy-note"><span class="dot">●</span> Il documento resta tuo: viene letto solo per rispondere alle tue domande.</div>
-      <button class="btn-primary" id="btn2">Ho caricato la busta paga</button>
+      <button class="btn-primary disabled" id="btn2">Ho caricato la busta paga</button>
     </div>
 
     <!-- SCREEN 3 -->
@@ -558,8 +568,21 @@
 
   btn1.addEventListener('click', () => { if(!btn1.classList.contains('disabled')) goTo('s2'); });
 
-  document.getElementById('btn2').addEventListener('click', () => goTo('s3'));
-  document.getElementById('dropzone').addEventListener('click', () => goTo('s3'));
+  const btn2 = document.getElementById('btn2');
+  const dropzone = document.getElementById('dropzone');
+  const dzIcon = document.getElementById('dzIcon');
+  const dzText = document.getElementById('dzText');
+  const dzSub = document.getElementById('dzSub');
+
+  dropzone.addEventListener('click', () => {
+    dropzone.classList.add('filled');
+    dzIcon.textContent = '✓';
+    dzText.textContent = 'cedolino_luglio.pdf';
+    dzSub.textContent = 'Caricato — tocca per sostituirlo';
+    btn2.classList.remove('disabled');
+  });
+
+  btn2.addEventListener('click', () => { if(!btn2.classList.contains('disabled')) goTo('s3'); });
 
   // Screen 3 — demo chat
   const chatLog = document.getElementById('chatLog');
@@ -632,5 +655,12 @@
   });
 </script>
 
+<script>
+  if ('serviceWorker' in navigator) {
+    window.addEventListener('load', () => {
+      navigator.serviceWorker.register('service-worker.js').catch(() => {});
+    });
+  }
+</script>
 </body>
 </html>
