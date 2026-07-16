@@ -86,6 +86,30 @@
   .logo-word em{ font-style:normal; color:var(--gold); }
 
   /* Screen 1 — CCNL select button (single search bar lives in the overlay) */
+  .field{ margin-bottom:13px; }
+  .field label{ font-size:11px; color:var(--ink-soft); margin-bottom:6px; display:block; font-weight:600; letter-spacing:.02em; }
+  .field input{
+    width:100%; background:var(--panel); border:1px solid var(--line); border-radius:12px;
+    padding:13px 14px; color:var(--ink); font-family:'Inter',sans-serif; font-size:13.5px; outline:none;
+    transition:border-color .15s;
+  }
+  .field input::placeholder{ color:#5C5A66; }
+  .field input:focus{ border-color:var(--gold-deep); }
+
+  .divider{ display:flex; align-items:center; gap:10px; margin:16px 0; color:var(--ink-soft); font-size:11px; }
+  .divider::before,.divider::after{ content:''; flex:1; height:1px; background:var(--line); }
+
+  .btn-google{
+    display:flex; align-items:center; justify-content:center; gap:10px; width:100%;
+    background:var(--panel); border:1px solid var(--line); border-radius:16px;
+    padding:14px; font-family:'Space Grotesk',sans-serif; font-weight:600; font-size:13.5px;
+    color:var(--ink); cursor:pointer; transition:border-color .15s;
+  }
+  .btn-google:hover{ border-color:var(--gold-deep); }
+
+  .signup-link{ text-align:center; font-size:12.5px; color:var(--ink-soft); margin-top:18px; }
+  .signup-link em{ font-style:normal; color:var(--gold); font-weight:600; }
+
   .select-trigger{
     display:flex; align-items:center; justify-content:center; gap:8px;
     background:var(--panel-2); border:1px solid var(--gold-deep); border-radius:14px;
@@ -101,9 +125,13 @@
   .ccnl-overlay{
     position:absolute; inset:0; background:var(--bg); z-index:30;
     display:flex; flex-direction:column; padding:24px 22px 20px;
-    transform:translateY(100%); transition:transform .32s cubic-bezier(.2,.9,.3,1);
+    transform:translateY(100%); transition:transform .32s cubic-bezier(.2,.9,.3,1), visibility 0s linear .32s;
+    visibility:hidden; pointer-events:none;
   }
-  .ccnl-overlay.open{ transform:translateY(0); }
+  .ccnl-overlay.open{
+    transform:translateY(0); visibility:visible; pointer-events:auto;
+    transition:transform .32s cubic-bezier(.2,.9,.3,1);
+  }
   .ccnl-head{ display:flex; align-items:center; justify-content:space-between; margin-bottom:18px; }
   .ccnl-title{ font-family:'Space Grotesk',sans-serif; font-weight:700; font-size:16px; color:var(--ink); }
   .ccnl-close{
@@ -197,7 +225,7 @@
   .screen.active .tag{ opacity:1; transform:translateX(0); }
   .tag em{ font-style:normal; color:var(--gold); font-weight:600; }
 
-  .chat{ display:flex; flex-direction:column; gap:10px; }
+  .chat{ display:flex; flex-direction:column; gap:10px; flex:1; }
   .bubble{
     max-width:82%; padding:11px 14px; border-radius:16px; font-size:13px; line-height:1.5;
   }
@@ -211,10 +239,37 @@
   }
   .bubble.ai b{ color:var(--coral); font-weight:600; }
   .bubble.ai .ok{ color:var(--mint); font-weight:600; }
+  .bubble.typing{ display:flex; gap:4px; align-items:center; padding:13px 16px; }
+  .bubble.typing span{
+    width:5px; height:5px; border-radius:50%; background:var(--ink-soft);
+    animation:blink 1.1s infinite ease-in-out;
+  }
+  .bubble.typing span:nth-child(2){ animation-delay:.15s; }
+  .bubble.typing span:nth-child(3){ animation-delay:.3s; }
+  @keyframes blink{ 0%,80%,100%{ opacity:.25; } 40%{ opacity:1; } }
+
+  .chat-input{
+    display:flex; align-items:center; gap:8px; background:var(--panel);
+    border:1px solid var(--line); border-radius:100px; padding:6px 6px 6px 16px;
+    margin-top:14px; position:sticky; bottom:0;
+  }
+  .chat-input input{
+    flex:1; background:none; border:none; outline:none; color:var(--ink);
+    font-family:'Inter',sans-serif; font-size:13px;
+  }
+  .chat-input input::placeholder{ color:#5C5A66; }
+  .chat-send{
+    width:34px; height:34px; border-radius:50%; background:var(--gold); border:none;
+    color:#151208; font-size:15px; font-weight:700; cursor:pointer;
+    display:flex; align-items:center; justify-content:center; flex-shrink:0;
+  }
+  .chat-send:active{ transform:scale(.94); }
 
   .tabbar{
     display:flex; border-top:1px solid var(--line); background:var(--bg);
+    max-height:1000px; overflow:hidden; transition:max-height .2s ease, opacity .2s ease;
   }
+  .tabbar.hidden{ max-height:0; opacity:0; border-top:none; }
   .tab{
     flex:1; text-align:center; padding:14px 4px 20px; cursor:pointer;
     font-family:'Space Grotesk',sans-serif; font-size:10px; font-weight:600;
@@ -227,6 +282,52 @@
     transition:background .15s, box-shadow .15s;
   }
   .tab.active .tab-dot{ background:var(--gold); box-shadow:0 0 0 3px rgba(227,178,76,.18); }
+
+  .account-fab{
+    position:absolute; top:16px; right:16px; z-index:50;
+    opacity:1; transform:scale(1); transition:opacity .2s ease, transform .2s ease;
+  }
+  .account-fab.hidden{ opacity:0; transform:scale(.8); pointer-events:none; }
+  .avatar{
+    width:32px; height:32px; border-radius:50%; background:var(--panel-2);
+    border:1px solid var(--gold-deep); display:flex; align-items:center; justify-content:center;
+    font-size:14px; cursor:pointer; color:var(--gold);
+  }
+  .account-menu{
+    position:absolute; top:40px; right:0; width:196px;
+    background:var(--panel); border:1px solid var(--line); border-radius:14px;
+    padding:6px; box-shadow:0 16px 32px -12px rgba(0,0,0,.5);
+    opacity:0; transform:translateY(-6px) scale(.97); pointer-events:none;
+    transition:opacity .16s ease, transform .16s ease;
+  }
+  .account-menu.open{ opacity:1; transform:translateY(0) scale(1); pointer-events:auto; }
+  .menu-item{
+    display:flex; align-items:center; gap:10px; padding:11px 10px; border-radius:9px;
+    font-size:13px; font-weight:500; color:var(--ink); cursor:pointer; transition:background .12s;
+  }
+  .menu-item:hover{ background:var(--panel-2); }
+  .menu-icon{ font-size:14px; width:18px; text-align:center; }
+  .menu-sub{ max-height:0; overflow:hidden; transition:max-height .2s ease; }
+  .menu-sub.open{ max-height:60px; }
+  .theme-row{
+    display:flex; align-items:center; justify-content:space-between;
+    padding:10px 12px 8px; font-size:12.5px; color:var(--ink-soft); font-weight:500;
+  }
+  .theme-toggle{
+    width:38px; height:22px; border-radius:100px; background:var(--panel-2);
+    border:1px solid var(--line); position:relative; cursor:pointer;
+  }
+  .theme-toggle-dot{
+    width:16px; height:16px; border-radius:50%; background:var(--gold);
+    position:absolute; top:2px; left:2px; transition:left .18s ease;
+  }
+  .theme-toggle.light .theme-toggle-dot{ left:18px; }
+
+  /* Light theme override, toggled via .phone.light-theme */
+  .phone.light-theme{
+    --bg:#F5F3EE; --panel:#FFFFFF; --panel-2:#EFEBE0; --line:#E3DFD2;
+    --ink:#18171C; --ink-soft:#726F78; --gold-deep:#B5872F;
+  }
 </style>
 </head>
 <body>
@@ -237,8 +338,42 @@
   <div class="notch"></div>
   <div class="screens">
 
+    <!-- SCREEN 0 — LOGIN -->
+    <div class="screen active" id="s0">
+      <div class="logo-row">
+        <div class="logo-mark">PL</div>
+        <span class="logo-word">Pay<em>Lens</em></span>
+      </div>
+      <h1>Entra in PayLens.</h1>
+      <p class="sub">Salviamo i tuoi cedolini per confrontarli mese su mese e darti risposte più precise.</p>
+
+      <div class="field">
+        <label>Email</label>
+        <input type="email" placeholder="tuonome@email.com" autocomplete="off">
+      </div>
+      <div class="field">
+        <label>Password</label>
+        <input type="password" placeholder="••••••••" autocomplete="off">
+      </div>
+      <button class="btn-primary" id="btnLogin">Accedi</button>
+
+      <div class="divider">oppure</div>
+
+      <div class="btn-google" id="btnGoogle">
+        <svg width="17" height="17" viewBox="0 0 48 48">
+          <path fill="#FFC107" d="M43.6 20.5H42V20H24v8h11.3C33.7 32.6 29.3 36 24 36c-6.6 0-12-5.4-12-12s5.4-12 12-12c3.1 0 5.9 1.2 8 3.1l5.7-5.7C34.5 6.1 29.5 4 24 4 12.9 4 4 12.9 4 24s8.9 20 20 20 20-8.9 20-20c0-1.2-.1-2.4-.4-3.5z"/>
+          <path fill="#FF3D00" d="M6.3 14.7l6.6 4.8C14.6 15.9 18.9 13 24 13c3.1 0 5.9 1.2 8 3.1l5.7-5.7C34.5 6.1 29.5 4 24 4 16.3 4 9.6 8.3 6.3 14.7z"/>
+          <path fill="#4CAF50" d="M24 44c5.3 0 10.1-1.9 13.8-5.1l-6.4-5.2C29.3 35.5 26.8 36 24 36c-5.3 0-9.7-3.4-11.3-8.1l-6.6 5.1C9.5 39.7 16.2 44 24 44z"/>
+          <path fill="#1976D2" d="M43.6 20.5H42V20H24v8h11.3c-.8 2.3-2.3 4.3-4.2 5.7l6.4 5.2C41 36.5 44 30.8 44 24c0-1.2-.1-2.4-.4-3.5z"/>
+        </svg>
+        Continua con Google
+      </div>
+
+      <div class="signup-link">Non hai un account? <em>Registrati</em></div>
+    </div>
+
     <!-- SCREEN 1 -->
-    <div class="screen active" id="s1">
+    <div class="screen" id="s1">
       <div class="logo-row">
         <div class="logo-mark">PL</div>
         <span class="logo-word">Pay<em>Lens</em></span>
@@ -297,31 +432,58 @@
           <div class="tag">Hai <em>4,5 ore</em> di permesso da smaltire entro fine anno — occhio alle scadenze del tuo CCNL.</div>
         </div>
       </div>
-      <div class="chat">
+      <div class="chat" id="chatLog">
         <div class="bubble user">Perché ho preso meno questo mese?</div>
         <div class="bubble ai">Rispetto a giugno mancano <b>63 €</b> di straordinari e c'è stata una giornata di malattia non retribuita al 100%. Il resto <span class="ok">torna</span>.</div>
+      </div>
+      <div class="chat-input">
+        <input type="text" id="chatInput" placeholder="Fai un'altra domanda…" autocomplete="off">
+        <button class="chat-send" id="chatSend">↑</button>
       </div>
     </div>
 
   </div>
 
-  <div class="tabbar">
+  <div class="tabbar hidden" id="tabbar">
     <div class="tab active" data-target="s1"><div class="tab-dot"></div>Contratto</div>
     <div class="tab" data-target="s2"><div class="tab-dot"></div>Documento</div>
     <div class="tab" data-target="s3"><div class="tab-dot"></div>Decoder</div>
   </div>
+
+  <div class="account-fab hidden" id="accountFab">
+    <div class="avatar" id="avatarBtn">👤</div>
+    <div class="account-menu" id="accountMenu">
+      <div class="menu-item" id="menuStorico"><span class="menu-icon">📊</span> Storico</div>
+      <div class="menu-item" id="menuSettings"><span class="menu-icon">⚙️</span> Impostazioni</div>
+      <div class="menu-sub" id="settingsSub">
+        <div class="theme-row">
+          <span>Tema scuro</span>
+          <div class="theme-toggle" id="themeToggle"><div class="theme-toggle-dot"></div></div>
+        </div>
+      </div>
+    </div>
+  </div>
+
 </div>
 
 <script>
   const screens = document.querySelectorAll('.screen');
+  const accountFab = document.getElementById('accountFab');
+  const tabbar = document.getElementById('tabbar');
   const tabs = document.querySelectorAll('.tab');
 
   function goTo(id){
     screens.forEach(s => s.classList.toggle('active', s.id === id));
+    accountFab.classList.toggle('hidden', id === 's0');
+    tabbar.classList.toggle('hidden', id === 's0');
     tabs.forEach(t => t.classList.toggle('active', t.dataset.target === id));
+    accountMenu.classList.remove('open');
   }
 
   tabs.forEach(t => t.addEventListener('click', () => goTo(t.dataset.target)));
+
+  document.getElementById('btnLogin').addEventListener('click', () => goTo('s1'));
+  document.getElementById('btnGoogle').addEventListener('click', () => goTo('s1'));
 
   const btn1 = document.getElementById('btn1');
   const UNKNOWN = 'Non conosco il mio contratto';
@@ -398,6 +560,76 @@
 
   document.getElementById('btn2').addEventListener('click', () => goTo('s3'));
   document.getElementById('dropzone').addEventListener('click', () => goTo('s3'));
+
+  // Screen 3 — demo chat
+  const chatLog = document.getElementById('chatLog');
+  const chatInput = document.getElementById('chatInput');
+  const chatSend = document.getElementById('chatSend');
+  const demoReplies = [
+    'Guardando il cedolino, quella voce corrisponde a un elemento variabile della retribuzione: non è fissa ogni mese, dipende dalle ore effettivamente lavorate.',
+    'Sì, il calcolo torna: il CCNL che hai scelto prevede quella percentuale di maggiorazione, ed è quello che vedi applicato.',
+    'Controllando le date, il rateo è stato conteggiato correttamente per il periodo lavorato questo mese.'
+  ];
+  let replyIndex = 0;
+
+  function addBubble(text, cls){
+    const div = document.createElement('div');
+    div.className = 'bubble ' + cls;
+    div.textContent = text;
+    chatLog.appendChild(div);
+    chatLog.parentElement.scrollTop = chatLog.parentElement.scrollHeight;
+  }
+
+  function sendMessage(){
+    const text = chatInput.value.trim();
+    if(!text) return;
+    addBubble(text, 'user');
+    chatInput.value = '';
+
+    const typing = document.createElement('div');
+    typing.className = 'bubble ai typing';
+    typing.innerHTML = '<span></span><span></span><span></span>';
+    chatLog.appendChild(typing);
+    chatLog.parentElement.scrollTop = chatLog.parentElement.scrollHeight;
+
+    setTimeout(() => {
+      typing.remove();
+      addBubble(demoReplies[replyIndex % demoReplies.length], 'ai');
+      replyIndex++;
+    }, 900);
+  }
+
+  chatSend.addEventListener('click', sendMessage);
+  chatInput.addEventListener('keydown', e => { if(e.key === 'Enter') sendMessage(); });
+
+  // Account menu
+  const avatarBtn = document.getElementById('avatarBtn');
+  const accountMenu = document.getElementById('accountMenu');
+  const menuSettings = document.getElementById('menuSettings');
+  const settingsSub = document.getElementById('settingsSub');
+  const themeToggle = document.getElementById('themeToggle');
+  const phoneEl = document.querySelector('.phone');
+  const menuStorico = document.getElementById('menuStorico');
+
+  avatarBtn.addEventListener('click', (e) => {
+    e.stopPropagation();
+    accountMenu.classList.toggle('open');
+  });
+
+  menuSettings.addEventListener('click', () => settingsSub.classList.toggle('open'));
+
+  themeToggle.addEventListener('click', () => {
+    themeToggle.classList.toggle('light');
+    phoneEl.classList.toggle('light-theme');
+  });
+
+  menuStorico.addEventListener('click', () => accountMenu.classList.remove('open'));
+
+  document.addEventListener('click', (e) => {
+    if(!accountMenu.contains(e.target) && e.target !== avatarBtn){
+      accountMenu.classList.remove('open');
+    }
+  });
 </script>
 
 </body>
