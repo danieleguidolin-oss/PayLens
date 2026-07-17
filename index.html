@@ -65,12 +65,12 @@
     position:absolute; inset:0;
     padding:56px 22px 20px;
     display:flex; flex-direction:column;
-    opacity:0; transform:translateX(24px);
+    opacity:0; transform:translateX(28px) scale(.97);
     pointer-events:none;
-    transition:opacity .38s ease, transform .38s ease;
+    transition:opacity .5s cubic-bezier(.22,1,.36,1), transform .5s cubic-bezier(.22,1,.36,1);
     overflow-y:auto;
   }
-  .screen.active{ opacity:1; transform:translateX(0); pointer-events:auto; }
+  .screen.active{ opacity:1; transform:translateX(0) scale(1); pointer-events:auto; }
 
   .eyebrow{
     font-family:'IBM Plex Mono',monospace; font-size:10.5px; font-weight:600;
@@ -114,6 +114,7 @@
     color:var(--ink); cursor:pointer; transition:border-color .15s;
   }
   .btn-google:hover{ border-color:var(--gold-deep); }
+  .btn-google:active{ transform:scale(.98); }
 
   .signup-link{ text-align:center; font-size:12.5px; color:var(--ink-soft); margin-top:18px; }
   .signup-link em{ font-style:normal; color:var(--gold); font-weight:600; }
@@ -121,9 +122,10 @@
   .select-trigger{
     display:flex; align-items:center; justify-content:center; gap:8px;
     background:var(--panel-2); border:1px solid var(--gold-deep); border-radius:14px;
-    padding:15px 16px; cursor:pointer; margin-bottom:28px; transition:border-color .15s;
+    padding:15px 16px; cursor:pointer; margin-bottom:28px; transition:border-color .15s, transform .12s ease;
   }
   .select-trigger:hover{ border-color:var(--gold); }
+  .select-trigger:active{ transform:scale(.98); }
   .select-trigger.filled{ background:var(--panel); border-color:var(--line); }
   .select-trigger.filled .select-trigger-text{ color:var(--ink); font-weight:600; }
   .select-trigger-text{ font-size:13.5px; color:var(--gold); font-weight:600; }
@@ -159,9 +161,10 @@
   .ccnl-list{ flex:1; overflow-y:auto; display:flex; flex-direction:column; }
   .ccnl-row{
     padding:13px 4px; font-size:13.5px; color:var(--ink); border-bottom:1px solid var(--line);
-    cursor:pointer; transition:color .15s;
+    cursor:pointer; transition:color .15s, transform .15s ease, padding-left .15s ease;
   }
-  .ccnl-row:hover{ color:var(--gold); }
+  .ccnl-row:hover{ color:var(--gold); padding-left:8px; }
+  .ccnl-row:active{ transform:scale(.98); }
   .ccnl-row.unknown{ color:var(--ice); font-style:italic; border-bottom:1px solid var(--gold-deep); margin-bottom:6px; }
   .ccnl-empty{ color:var(--ink-soft); font-size:12.5px; padding:16px 4px; text-align:center; }
   .btn-primary{
@@ -171,6 +174,7 @@
     transition:transform .12s ease, filter .12s ease;
   }
   .btn-primary:active{ transform:scale(.98); }
+  .btn-primary{ transition:transform .12s ease, filter .12s ease, background .2s ease; }
   .btn-primary.disabled{ background:var(--panel-2); color:#57565F; pointer-events:none; }
 
   /* Screen 2 — upload */
@@ -238,7 +242,9 @@
   .chat{ display:flex; flex-direction:column; gap:10px; flex:1; }
   .bubble{
     max-width:82%; padding:11px 14px; border-radius:16px; font-size:13px; line-height:1.5;
+    animation:bubbleIn .32s cubic-bezier(.22,1,.36,1);
   }
+  @keyframes bubbleIn{ from{ opacity:0; transform:translateY(10px) scale(.96); } to{ opacity:1; transform:translateY(0) scale(1); } }
   .bubble.user{
     align-self:flex-end; background:var(--gold); color:#151208; font-weight:500;
     border-bottom-right-radius:4px;
@@ -302,7 +308,9 @@
     width:32px; height:32px; border-radius:50%; background:var(--panel-2);
     border:1px solid var(--gold-deep); display:flex; align-items:center; justify-content:center;
     font-size:14px; cursor:pointer; color:var(--gold);
+    transition:transform .15s ease;
   }
+  .avatar:active{ transform:scale(.9); }
   .account-menu{
     position:absolute; top:40px; right:0; width:196px;
     background:var(--panel); border:1px solid var(--line); border-radius:14px;
@@ -334,6 +342,9 @@
   .theme-toggle.light .theme-toggle-dot{ left:18px; }
 
   /* Light theme override, toggled via .phone.light-theme */
+  .phone, .phone *{
+    transition: background-color .3s ease, color .3s ease, border-color .3s ease;
+  }
   .phone.light-theme{
     --bg:#F5F3EE; --panel:#FFFFFF; --panel-2:#EFEBE0; --line:#E3DFD2;
     --ink:#18171C; --ink-soft:#726F78; --gold-deep:#B5872F;
@@ -354,8 +365,8 @@
         <div class="logo-mark">PL</div>
         <span class="logo-word">Pay<em>Lens</em></span>
       </div>
-      <h1>Entra in PayLens.</h1>
-      <p class="sub">Salviamo i tuoi cedolini per confrontarli mese su mese e darti risposte più precise.</p>
+      <h1>Benvenuti in PayLens.</h1>
+      <p class="sub" style="max-width:300px;">Carica il tuo cedolino e lascia che PayLens ti aiuti a comprendere la tua busta paga, evidenziando le informazioni più importanti e le differenze rispetto ai mesi precedenti.</p>
 
       <div class="field">
         <label>Email</label>
