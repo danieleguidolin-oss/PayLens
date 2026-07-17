@@ -350,6 +350,8 @@
     --ink:#18171C; --ink-soft:#726F78; --gold-deep:#B5872F;
   }
 </style>
+<script src="https://www.gstatic.com/firebasejs/10.14.1/firebase-app-compat.js"></script>
+<script src="https://www.gstatic.com/firebasejs/10.14.1/firebase-auth-compat.js"></script>
 </head>
 <body>
 
@@ -370,12 +372,13 @@
 
       <div class="field">
         <label>Email</label>
-        <input type="email" placeholder="tuonome@email.com" autocomplete="off">
+        <input type="email" id="loginEmail" placeholder="tuonome@email.com" autocomplete="off">
       </div>
       <div class="field">
         <label>Password</label>
-        <input type="password" placeholder="••••••••" autocomplete="off">
+        <input type="password" id="loginPassword" placeholder="••••••••" autocomplete="off">
       </div>
+      <div id="loginError" style="display:none; color:var(--coral); font-size:12px; margin:-6px 0 12px;"></div>
       <button class="btn-primary" id="btnLogin">Accedi</button>
 
       <div class="divider">oppure</div>
@@ -390,7 +393,7 @@
         Continua con Google
       </div>
 
-      <div class="signup-link">Non hai un account? <em>Registrati</em></div>
+      <div class="signup-link">Non hai un account? <em id="signupLink">Registrati</em></div>
     </div>
 
     <!-- SCREEN 1 -->
@@ -482,10 +485,25 @@
           <div class="theme-toggle" id="themeToggle"><div class="theme-toggle-dot"></div></div>
         </div>
       </div>
+      <div class="menu-item" id="menuLogout" style="color:var(--coral);"><span class="menu-icon">↩</span> Esci</div>
     </div>
   </div>
 
 </div>
+
+<script>
+  // --- Firebase ---
+  const firebaseConfig = {
+    apiKey: "AIzaSyAN3qeOPA_PT2YDJY1tWCtoFZrQ6SkojDo",
+    authDomain: "paylens-80196.firebaseapp.com",
+    projectId: "paylens-80196",
+    storageBucket: "paylens-80196.firebasestorage.app",
+    messagingSenderId: "745667282099",
+    appId: "1:745667282099:web:73f013295a66f5e195dcc6"
+  };
+  firebase.initializeApp(firebaseConfig);
+  const auth = firebase.auth();
+</script>
 
 <script>
   const screens = document.querySelectorAll('.screen');
@@ -503,8 +521,59 @@
 
   tabs.forEach(t => t.addEventListener('click', () => goTo(t.dataset.target)));
 
-  document.getElementById('btnLogin').addEventListener('click', () => goTo('s1'));
-  document.getElementById('btnGoogle').addEventListener('click', () => goTo('s1'));
+  auth.onAuthStateChanged(user => { if(user) goTo('s1'); });
+
+  // --- Login reale ---
+  const loginEmail = document.getElementById('loginEmail');
+  const loginPassword = document.getElementById('loginPassword');
+  const loginError = document.getElementById('loginError');
+  const btnLogin = document.getElementById('btnLogin');
+  const btnGoogle = document.getElementById('btnGoogle');
+  const signupLink = document.getElementById('signupLink');
+
+  function showLoginError(message){
+    loginError.textContent = message;
+    loginError.style.display = 'block';
+  }
+
+  function translateAuthError(err){
+    switch(err.code){
+      case 'auth/invalid-email': return 'Email non valida.';
+      case 'auth/user-not-found': return 'Nessun account con questa email — prova a registrarti.';
+      case 'auth/wrong-password': return 'Password sbagliata.';
+      case 'auth/email-already-in-use': return 'Esiste già un account con questa email — prova ad accedere.';
+      case 'auth/weak-password': return 'La password deve avere almeno 6 caratteri.';
+      default: return 'Qualcosa è andato storto: ' + err.message;
+    }
+  }
+
+  btnLogin.addEventListener('click', () => {
+    loginError.style.display = 'none';
+    const email = loginEmail.value.trim();
+    const password = loginPassword.value;
+    if(!email || !password){ showLoginError('Inserisci email e password.'); return; }
+    auth.signInWithEmailAndPassword(email, password)
+      .then(() => goTo('s1'))
+      .catch(err => showLoginError(translateAuthError(err)));
+  });
+
+  signupLink.addEventListener('click', () => {
+    loginError.style.display = 'none';
+    const email = loginEmail.value.trim();
+    const password = loginPassword.value;
+    if(!email || !password){ showLoginError('Inserisci email e password per registrarti.'); return; }
+    auth.createUserWithEmailAndPassword(email, password)
+      .then(() => goTo('s1'))
+      .catch(err => showLoginError(translateAuthError(err)));
+  });
+
+  btnGoogle.addEventListener('click', () => {
+    loginError.style.display = 'none';
+    const provider = new firebase.auth.GoogleAuthProvider();
+    auth.signInWithPopup(provider)
+      .then(() => goTo('s1'))
+      .catch(err => showLoginError(translateAuthError(err)));
+  });
 
   const btn1 = document.getElementById('btn1');
   const UNKNOWN = 'Non conosco il mio contratto';
@@ -658,6 +727,11 @@
   });
 
   menuStorico.addEventListener('click', () => accountMenu.classList.remove('open'));
+
+  document.getElementById('menuLogout').addEventListener('click', () => {
+    accountMenu.classList.remove('open');
+    auth.signOut().then(() => goTo('s0'));
+  });
 
   document.addEventListener('click', (e) => {
     if(!accountMenu.contains(e.target) && e.target !== avatarBtn){
