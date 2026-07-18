@@ -424,6 +424,7 @@
           <span class="format-pill">PDF</span>
         </div>
       </div>
+      <input type="file" id="pdfInput" accept="application/pdf" style="display:none;">
       <div class="privacy-note"><span class="dot">●</span> Il documento resta tuo: viene letto solo per rispondere alle tue domande.</div>
       <button class="btn-primary disabled" id="btn2">Ho caricato la busta paga</button>
     </div>
@@ -433,14 +434,14 @@
       <div class="eyebrow">Luglio 2026</div>
       <h1>Ecco cosa dice.</h1>
       <div class="ledger">
-        <div class="ledger-row"><span>RETRIBUZIONE LORDA</span><span class="val">1.850,00</span></div>
-        <div class="ledger-row"><span>STRAORDINARI</span><span class="val">0,00</span></div>
-        <div class="ledger-row flag"><span>ROL RESIDUI</span><span class="val">4,5 h</span></div>
-        <div class="ledger-row"><span>FERIE RESIDUE</span><span class="val">12,0 gg</span></div>
-        <div class="ledger-row"><span>NETTO IN BUSTA</span><span class="val">1.412,37</span></div>
+        <div class="ledger-row"><span>RETRIBUZIONE LORDA</span><span class="val" id="valLordo">1.850,00</span></div>
+        <div class="ledger-row"><span>STRAORDINARI</span><span class="val" id="valStraordinari">0,00</span></div>
+        <div class="ledger-row flag"><span>ROL RESIDUI</span><span class="val" id="valRol">4,5 h</span></div>
+        <div class="ledger-row"><span>FERIE RESIDUE</span><span class="val" id="valFerie">12,0 gg</span></div>
+        <div class="ledger-row"><span>NETTO IN BUSTA</span><span class="val" id="valNetto">1.412,37</span></div>
         <div class="tag-wrap">
           <div class="leader"></div>
-          <div class="tag">Hai <em>4,5 ore</em> di permesso da smaltire entro fine anno — occhio alle scadenze del tuo CCNL.</div>
+          <div class="tag" id="tagText">Hai <em>4,5 ore</em> di permesso da smaltire entro fine anno — occhio alle scadenze del tuo CCNL.</div>
         </div>
       </div>
       <div class="chat" id="chatLog">
@@ -498,6 +499,8 @@
   } from "https://www.gstatic.com/firebasejs/12.16.0/firebase-auth.js";
   import { initializeAppCheck, ReCaptchaV3Provider } from "https://www.gstatic.com/firebasejs/12.16.0/firebase-app-check.js";
   import { getAI, getGenerativeModel, GoogleAIBackend } from "https://www.gstatic.com/firebasejs/12.16.0/firebase-ai.js";
+  import * as pdfjsLib from "https://cdn.jsdelivr.net/npm/pdfjs-dist@5.7.284/build/pdf.mjs";
+  pdfjsLib.GlobalWorkerOptions.workerSrc = "https://cdn.jsdelivr.net/npm/pdfjs-dist@5.7.284/build/pdf.worker.mjs";
 
   // --- Firebase ---
   const firebaseConfig = {
@@ -668,18 +671,95 @@
 
   btn1.addEventListener('click', () => { if(!btn1.classList.contains('disabled')) goTo('s2'); });
 
+  const valLordo = document.getElementById('valLordo');
+  const valStraordinari = document.getElementById('valStraordinari');
+  const valRol = document.getElementById('valRol');
+  const valFerie = document.getElementById('valFerie');
+  const valNetto = document.getElementById('valNetto');
+  const tagText = document.getElementById('tagText');
+
+  async function analyzeLedger(text){
+    const prompt = `Estrai dal seguente testo di un cedolino italiano questi valori: retribuzione lorda, totale straordinari, ore di ROL residue, giorni di ferie residue, netto in busta. Rispondi SOLO con un oggetto JSON valido, senza markdown e senza altro testo, con questa forma esatta:
+{"lordo":"...","straordinari":"...","rol":"...","ferie":"...","netto":"...","nota":"un breve consiglio o osservazione pratica per l'utente, massimo 20 parole, in italiano"}
+Se un valore non è presente nel testo, scrivi "N/D" per quel campo. Ecco il testo del cedolino:
+
+${text}`;
+    const result = await model.generateContent(prompt);
+    let raw = result.response.text().trim();
+    raw = raw.replace(/^```json\s*/i, '').replace(/^```\s*/, '').replace(/```$/, '').trim();
+    return JSON.parse(raw);
+  }
+
+  function setLedgerLoading(){
+    [valLordo, valStraordinari, valRol, valFerie, valNetto].forEach(el => el.textContent = '…');
+    tagText.innerHTML = 'Sto leggendo i dati del tuo cedolino…';
+  }
+
+  function fillLedger(data){
+    valLordo.textContent = data.lordo || 'N/D';
+    valStraordinari.textContent = data.straordinari || 'N/D';
+    valRol.textContent = data.rol || 'N/D';
+    valFerie.textContent = data.ferie || 'N/D';
+    valNetto.textContent = data.netto || 'N/D';
+    tagText.textContent = data.nota || '';
+  }
+
   const btn2 = document.getElementById('btn2');
   const dropzone = document.getElementById('dropzone');
   const dzIcon = document.getElementById('dzIcon');
   const dzText = document.getElementById('dzText');
   const dzSub = document.getElementById('dzSub');
+  const pdfInput = document.getElementById('pdfInput');
 
-  dropzone.addEventListener('click', () => {
-    dropzone.classList.add('filled');
-    dzIcon.textContent = '✓';
-    dzText.textContent = 'cedolino_luglio.pdf';
-    dzSub.textContent = 'Caricato — tocca per sostituirlo';
-    btn2.classList.remove('disabled');
+  let extractedPdfText = '';
+
+  async function extractPdfText(file){
+    const arrayBuffer = await file.arrayBuffer();
+    const pdf = await pdfjsLib.getDocument({ data: arrayBuffer }).promise;
+    let fullText = '';
+    for(let i = 1; i <= pdf.numPages; i++){
+      const page = await pdf.getPage(i);
+      const content = await page.getTextContent();
+      fullText += content.items.map(item => item.str).join(' ') + '\n';
+    }
+    return fullText.trim();
+  }
+
+  dropzone.addEventListener('click', () => pdfInput.click());
+
+  pdfInput.addEventListener('change', async () => {
+    const file = pdfInput.files[0];
+    if(!file) return;
+
+    dropzone.classList.remove('filled');
+    dzIcon.textContent = '…';
+    dzText.textContent = 'Sto leggendo il PDF…';
+    dzSub.textContent = file.name;
+    btn2.classList.add('disabled');
+
+    try{
+      const text = await extractPdfText(file);
+      if(!text){
+        throw new Error('Nessun testo trovato — potrebbe essere una scansione/immagine.');
+      }
+      extractedPdfText = text;
+      dropzone.classList.add('filled');
+      dzIcon.textContent = '✓';
+      dzText.textContent = file.name;
+      dzSub.textContent = 'Caricato — tocca per sostituirlo';
+      btn2.classList.remove('disabled');
+
+      setLedgerLoading();
+      analyzeLedger(text)
+        .then(fillLedger)
+        .catch(() => { tagText.textContent = 'Non sono riuscito ad analizzare automaticamente tutti i dati — puoi comunque chiedermi tutto in chat.'; });
+    } catch(err){
+      dropzone.classList.remove('filled');
+      dzIcon.textContent = '!';
+      dzText.textContent = 'Non riesco a leggere questo PDF';
+      dzSub.textContent = err.message + ' Tocca per riprovare.';
+      btn2.classList.add('disabled');
+    }
   });
 
   btn2.addEventListener('click', () => { if(!btn2.classList.contains('disabled')) goTo('s3'); });
@@ -713,9 +793,17 @@
     const contractLine = selectedCCNL
       ? `Il contratto (CCNL) dell'utente è: ${selectedCCNL}.`
       : `L'utente non ha specificato il proprio CCNL.`;
-    const ledgerEl = document.querySelector('.ledger');
-    const ledgerText = ledgerEl ? ledgerEl.innerText.replace(/\s+/g, ' ').trim() : '';
-    const prompt = `Sei l'assistente di PayLens, un'app che aiuta le persone in Italia a capire la propria busta paga. ${contractLine} Questi sono i dati estratti dal cedolino: ${ledgerText}. Rispondi in italiano, in modo chiaro, breve e concreto, alla seguente domanda dell'utente sulla sua busta paga:\n\n${text}`;
+
+    let cedolinoContext;
+    if(extractedPdfText){
+      cedolinoContext = `Questo è il testo estratto dal cedolino PDF caricato dall'utente:\n${extractedPdfText}`;
+    } else {
+      const ledgerEl = document.querySelector('.ledger');
+      const ledgerText = ledgerEl ? ledgerEl.innerText.replace(/\s+/g, ' ').trim() : '';
+      cedolinoContext = `Questi sono dati di esempio del cedolino (nessun PDF reale è stato ancora caricato in questa sessione): ${ledgerText}`;
+    }
+
+    const prompt = `Sei l'assistente di PayLens, un'app che aiuta le persone in Italia a capire la propria busta paga. ${contractLine} ${cedolinoContext}\n\nRispondi in italiano, in modo chiaro, breve e concreto, alla seguente domanda dell'utente sulla sua busta paga:\n\n${text}`;
 
     try{
       const result = await model.generateContent(prompt);
