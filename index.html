@@ -350,8 +350,7 @@
     --ink:#18171C; --ink-soft:#726F78; --gold-deep:#B5872F;
   }
 </style>
-<script src="https://www.gstatic.com/firebasejs/10.14.1/firebase-app-compat.js"></script>
-<script src="https://www.gstatic.com/firebasejs/10.14.1/firebase-auth-compat.js"></script>
+<!-- Firebase (SDK modulare, necessaria per AI Logic) -->
 </head>
 <body>
 
@@ -491,7 +490,15 @@
 
 </div>
 
-<script>
+<script type="module">
+  import { initializeApp } from "https://www.gstatic.com/firebasejs/12.16.0/firebase-app.js";
+  import {
+    getAuth, onAuthStateChanged, signInWithEmailAndPassword,
+    createUserWithEmailAndPassword, GoogleAuthProvider, signInWithPopup, signOut
+  } from "https://www.gstatic.com/firebasejs/12.16.0/firebase-auth.js";
+  import { initializeAppCheck, ReCaptchaV3Provider } from "https://www.gstatic.com/firebasejs/12.16.0/firebase-app-check.js";
+  import { getAI, getGenerativeModel, GoogleAIBackend } from "https://www.gstatic.com/firebasejs/12.16.0/firebase-ai.js";
+
   // --- Firebase ---
   const firebaseConfig = {
     apiKey: "AIzaSyAN3qeOPA_PT2YDJY1tWCtoFZrQ6SkojDo",
@@ -501,11 +508,20 @@
     messagingSenderId: "745667282099",
     appId: "1:745667282099:web:73f013295a66f5e195dcc6"
   };
-  firebase.initializeApp(firebaseConfig);
-  const auth = firebase.auth();
-</script>
+  const app = initializeApp(firebaseConfig);
 
-<script>
+  // App Check protegge Gemini da usi non autorizzati
+  initializeAppCheck(app, {
+    provider: new ReCaptchaV3Provider('6LcpelotAAAAAI-rCM1u8aeb3DGnOgU9fTsv7YF-'),
+    isTokenAutoRefreshEnabled: true
+  });
+
+  const auth = getAuth(app);
+
+  // Gemini via Firebase AI Logic
+  const ai = getAI(app, { backend: new GoogleAIBackend() });
+  const model = getGenerativeModel(ai, { model: "gemini-3.5-flash" });
+
   const screens = document.querySelectorAll('.screen');
   const accountFab = document.getElementById('accountFab');
   const tabbar = document.getElementById('tabbar');
@@ -521,7 +537,7 @@
 
   tabs.forEach(t => t.addEventListener('click', () => goTo(t.dataset.target)));
 
-  auth.onAuthStateChanged(user => { if(user) goTo('s1'); });
+  onAuthStateChanged(auth, user => { if(user) goTo('s1'); });
 
   // --- Login reale ---
   const loginEmail = document.getElementById('loginEmail');
@@ -553,7 +569,7 @@
     const email = loginEmail.value.trim();
     const password = loginPassword.value;
     if(!email || !password){ showLoginError('Inserisci email e password.'); return; }
-    auth.signInWithEmailAndPassword(email, password)
+    signInWithEmailAndPassword(auth, email, password)
       .then(() => goTo('s1'))
       .catch(err => showLoginError(translateAuthError(err)));
   });
@@ -563,15 +579,15 @@
     const email = loginEmail.value.trim();
     const password = loginPassword.value;
     if(!email || !password){ showLoginError('Inserisci email e password per registrarti.'); return; }
-    auth.createUserWithEmailAndPassword(email, password)
+    createUserWithEmailAndPassword(auth, email, password)
       .then(() => goTo('s1'))
       .catch(err => showLoginError(translateAuthError(err)));
   });
 
   btnGoogle.addEventListener('click', () => {
     loginError.style.display = 'none';
-    const provider = new firebase.auth.GoogleAuthProvider();
-    auth.signInWithPopup(provider)
+    const provider = new GoogleAuthProvider();
+    signInWithPopup(auth, provider)
       .then(() => goTo('s1'))
       .catch(err => showLoginError(translateAuthError(err)));
   });
@@ -606,6 +622,8 @@
     'Vigilanza privata'
   ];
 
+  let selectedCCNL = null;
+
   const trigger = document.getElementById('ccnlTrigger');
   const triggerText = document.getElementById('ccnlTriggerText');
   const overlay = document.getElementById('ccnlOverlay');
@@ -629,6 +647,7 @@
   }
 
   function selectCcnl(name){
+    selectedCCNL = name;
     triggerText.textContent = name;
     trigger.classList.add('filled');
     btn1.classList.remove('disabled');
@@ -665,16 +684,10 @@
 
   btn2.addEventListener('click', () => { if(!btn2.classList.contains('disabled')) goTo('s3'); });
 
-  // Screen 3 — demo chat
+  // Screen 3 — chat collegata a Gemini
   const chatLog = document.getElementById('chatLog');
   const chatInput = document.getElementById('chatInput');
   const chatSend = document.getElementById('chatSend');
-  const demoReplies = [
-    'Guardando il cedolino, quella voce corrisponde a un elemento variabile della retribuzione: non è fissa ogni mese, dipende dalle ore effettivamente lavorate.',
-    'Sì, il calcolo torna: il CCNL che hai scelto prevede quella percentuale di maggiorazione, ed è quello che vedi applicato.',
-    'Controllando le date, il rateo è stato conteggiato correttamente per il periodo lavorato questo mese.'
-  ];
-  let replyIndex = 0;
 
   function addBubble(text, cls){
     const div = document.createElement('div');
@@ -682,9 +695,10 @@
     div.textContent = text;
     chatLog.appendChild(div);
     chatLog.parentElement.scrollTop = chatLog.parentElement.scrollHeight;
+    return div;
   }
 
-  function sendMessage(){
+  async function sendMessage(){
     const text = chatInput.value.trim();
     if(!text) return;
     addBubble(text, 'user');
@@ -696,11 +710,22 @@
     chatLog.appendChild(typing);
     chatLog.parentElement.scrollTop = chatLog.parentElement.scrollHeight;
 
-    setTimeout(() => {
+    const contractLine = selectedCCNL
+      ? `Il contratto (CCNL) dell'utente è: ${selectedCCNL}.`
+      : `L'utente non ha specificato il proprio CCNL.`;
+    const ledgerEl = document.querySelector('.ledger');
+    const ledgerText = ledgerEl ? ledgerEl.innerText.replace(/\s+/g, ' ').trim() : '';
+    const prompt = `Sei l'assistente di PayLens, un'app che aiuta le persone in Italia a capire la propria busta paga. ${contractLine} Questi sono i dati estratti dal cedolino: ${ledgerText}. Rispondi in italiano, in modo chiaro, breve e concreto, alla seguente domanda dell'utente sulla sua busta paga:\n\n${text}`;
+
+    try{
+      const result = await model.generateContent(prompt);
+      const answer = result.response.text();
       typing.remove();
-      addBubble(demoReplies[replyIndex % demoReplies.length], 'ai');
-      replyIndex++;
-    }, 900);
+      addBubble(answer, 'ai');
+    } catch(err){
+      typing.remove();
+      addBubble('Non sono riuscito a contattare l\'IA: ' + err.message, 'ai');
+    }
   }
 
   chatSend.addEventListener('click', sendMessage);
@@ -731,7 +756,7 @@
 
   document.getElementById('menuLogout').addEventListener('click', () => {
     accountMenu.classList.remove('open');
-    auth.signOut().then(() => goTo('s0'));
+    signOut(auth).then(() => goTo('s0'));
   });
 
   document.addEventListener('click', (e) => {
