@@ -748,11 +748,15 @@ ${text}`;
       dzText.textContent = file.name;
       dzSub.textContent = 'Caricato — tocca per sostituirlo';
       btn2.classList.remove('disabled');
+      chatLog.innerHTML = '';
 
       setLedgerLoading();
       analyzeLedger(text)
         .then(fillLedger)
-        .catch(() => { tagText.textContent = 'Non sono riuscito ad analizzare automaticamente tutti i dati — puoi comunque chiedermi tutto in chat.'; });
+        .catch(err => {
+          [valLordo, valStraordinari, valRol, valFerie, valNetto].forEach(el => el.textContent = 'N/D');
+          tagText.textContent = 'Non sono riuscito ad analizzare automaticamente i dati (' + err.message + ') — puoi comunque chiedermi tutto in chat.';
+        });
     } catch(err){
       dropzone.classList.remove('filled');
       dzIcon.textContent = '!';
