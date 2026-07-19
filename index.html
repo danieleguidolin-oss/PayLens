@@ -525,7 +525,10 @@
 
   // Gemini via Firebase AI Logic
   const ai = getAI(app, { backend: new GoogleAIBackend() });
-  const model = getGenerativeModel(ai, { model: "gemini-3.5-flash" });
+  const model = getGenerativeModel(ai, {
+    model: "gemini-3.5-flash",
+    systemInstruction: "Sei l'assistente di PayLens, un'app che aiuta le persone in Italia a capire la propria busta paga. Stai avendo una conversazione continua con l'utente: non salutare né presentarti a ogni risposta, rispondi direttamente come se steste già chiacchierando. Rispondi sempre in italiano, in modo chiaro, breve e concreto."
+  });
 
   const screens = document.querySelectorAll('.screen');
   const accountFab = document.getElementById('accountFab');
@@ -775,6 +778,7 @@ ${text}`;
       dzSub.textContent = 'Caricato — tocca per sostituirlo';
       btn2.classList.remove('disabled');
       chatLog.innerHTML = '';
+      chatSession = null;
 
       setLedgerLoading();
       analyzeLedger(text)
@@ -800,6 +804,33 @@ ${text}`;
   const chatInput = document.getElementById('chatInput');
   const chatSend = document.getElementById('chatSend');
 
+  let chatSession = null;
+
+  function buildContextPrompt(){
+    const contractLine = selectedCCNL
+      ? `Il contratto (CCNL) dell'utente è: ${selectedCCNL}.`
+      : `L'utente non ha specificato il proprio CCNL.`;
+
+    let cedolinoContext;
+    if(extractedPdfText){
+      cedolinoContext = `Questo è il testo estratto dal cedolino PDF caricato dall'utente:\n${extractedPdfText}`;
+    } else {
+      const ledgerEl = document.querySelector('.ledger');
+      const ledgerText = ledgerEl ? ledgerEl.innerText.replace(/\s+/g, ' ').trim() : '';
+      cedolinoContext = `Questi sono dati di esempio del cedolino (nessun PDF reale è stato ancora caricato in questa sessione): ${ledgerText}`;
+    }
+    return `${contractLine} ${cedolinoContext}`;
+  }
+
+  function startChatSession(){
+    chatSession = model.startChat({
+      history: [
+        { role: 'user', parts: [{ text: buildContextPrompt() }] },
+        { role: 'model', parts: [{ text: 'Ho letto i dati del cedolino, chiedimi pure.' }] }
+      ]
+    });
+  }
+
   function addBubble(text, cls){
     const div = document.createElement('div');
     div.className = 'bubble ' + cls;
@@ -821,23 +852,10 @@ ${text}`;
     chatLog.appendChild(typing);
     chatLog.parentElement.scrollTop = chatLog.parentElement.scrollHeight;
 
-    const contractLine = selectedCCNL
-      ? `Il contratto (CCNL) dell'utente è: ${selectedCCNL}.`
-      : `L'utente non ha specificato il proprio CCNL.`;
-
-    let cedolinoContext;
-    if(extractedPdfText){
-      cedolinoContext = `Questo è il testo estratto dal cedolino PDF caricato dall'utente:\n${extractedPdfText}`;
-    } else {
-      const ledgerEl = document.querySelector('.ledger');
-      const ledgerText = ledgerEl ? ledgerEl.innerText.replace(/\s+/g, ' ').trim() : '';
-      cedolinoContext = `Questi sono dati di esempio del cedolino (nessun PDF reale è stato ancora caricato in questa sessione): ${ledgerText}`;
-    }
-
-    const prompt = `Sei l'assistente di PayLens, un'app che aiuta le persone in Italia a capire la propria busta paga. ${contractLine} ${cedolinoContext}\n\nRispondi in italiano, in modo chiaro, breve e concreto, alla seguente domanda dell'utente sulla sua busta paga:\n\n${text}`;
+    if(!chatSession) startChatSession();
 
     try{
-      const result = await model.generateContent(prompt);
+      const result = await chatSession.sendMessage(text);
       const answer = result.response.text();
       typing.remove();
       addBubble(answer, 'ai');
