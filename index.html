@@ -220,11 +220,17 @@
   .ledger-row:last-child{ border-bottom:none; font-weight:600; color:var(--ink); padding-top:12px; }
   .ledger-row.flag{ color:var(--gold); font-weight:600; position:relative; }
   .ledger-row .val{ color:inherit; }
+  .ledger-row.tappable{ cursor:pointer; transition:background-color .15s ease; margin:0 -8px; padding-left:8px; padding-right:8px; border-radius:8px; }
+  .ledger-row.tappable:hover{ background-color:rgba(227,178,76,.08); }
+  .ledger-row.tappable.selected{ background-color:rgba(227,178,76,.12); }
 
-  /* signature element: docket tag pinned by a gold leader line */
+  /* signature element: docket tag pinned by a gold leader line, appare solo al tocco */
   .tag-wrap{
-    position:absolute; right:-13px; top:71px; display:flex; align-items:center;
+    position:absolute; right:-13px; display:flex; align-items:center;
+    opacity:0; transform:translateX(-8px); pointer-events:none;
+    transition:opacity .28s ease, transform .32s cubic-bezier(.2,1,.4,1), top .2s ease;
   }
+  .tag-wrap.show{ opacity:1; transform:translateX(0); pointer-events:auto; }
   .leader{
     width:22px; height:1px; background:var(--gold-deep);
   }
@@ -232,11 +238,7 @@
     width:176px; background:var(--panel-2); border:1px solid var(--gold-deep); border-left:3px solid var(--gold);
     border-radius:2px 10px 10px 2px; padding:11px 12px;
     font-size:11px; line-height:1.45; color:var(--ink); font-weight:500;
-    opacity:0; transform:translateX(-8px);
-    transition:opacity .35s ease, transform .4s cubic-bezier(.2,1,.4,1);
-    transition-delay:.35s;
   }
-  .screen.active .tag{ opacity:1; transform:translateX(0); }
   .tag em{ font-style:normal; color:var(--gold); font-weight:600; }
 
   .chat{ display:flex; flex-direction:column; gap:10px; flex:1; }
@@ -434,14 +436,14 @@
       <div class="eyebrow">Luglio 2026</div>
       <h1>Ecco cosa dice.</h1>
       <div class="ledger">
-        <div class="ledger-row"><span>RETRIBUZIONE LORDA</span><span class="val" id="valLordo">1.850,00</span></div>
-        <div class="ledger-row"><span>STRAORDINARI</span><span class="val" id="valStraordinari">0,00</span></div>
-        <div class="ledger-row flag"><span>ROL RESIDUI</span><span class="val" id="valRol">4,5 h</span></div>
-        <div class="ledger-row"><span>FERIE RESIDUE</span><span class="val" id="valFerie">12,0 gg</span></div>
-        <div class="ledger-row"><span>NETTO IN BUSTA</span><span class="val" id="valNetto">1.412,37</span></div>
-        <div class="tag-wrap">
+        <div class="ledger-row tappable" data-field="lordo"><span>RETRIBUZIONE LORDA</span><span class="val" id="valLordo">1.850,00</span></div>
+        <div class="ledger-row tappable" data-field="straordinari"><span>STRAORDINARI</span><span class="val" id="valStraordinari">0,00</span></div>
+        <div class="ledger-row tappable flag" data-field="rol"><span>ROL RESIDUI</span><span class="val" id="valRol">4,5 h</span></div>
+        <div class="ledger-row tappable" data-field="ferie"><span>FERIE RESIDUE</span><span class="val" id="valFerie">12,0 gg</span></div>
+        <div class="ledger-row tappable" data-field="netto"><span>NETTO IN BUSTA</span><span class="val" id="valNetto">1.412,37</span></div>
+        <div class="tag-wrap" id="tagWrap">
           <div class="leader"></div>
-          <div class="tag" id="tagText">Hai <em>4,5 ore</em> di permesso da smaltire entro fine anno — occhio alle scadenze del tuo CCNL.</div>
+          <div class="tag" id="tagText"></div>
         </div>
       </div>
       <div class="chat" id="chatLog">
@@ -677,11 +679,34 @@
   const valFerie = document.getElementById('valFerie');
   const valNetto = document.getElementById('valNetto');
   const tagText = document.getElementById('tagText');
+  const tagWrap = document.getElementById('tagWrap');
+  let ledgerNotes = {};
+  let selectedRow = null;
+
+  document.querySelectorAll('.ledger-row.tappable').forEach(row => {
+    row.addEventListener('click', () => {
+      const field = row.dataset.field;
+      if(selectedRow === row){
+        tagWrap.classList.remove('show');
+        row.classList.remove('selected');
+        selectedRow = null;
+        return;
+      }
+      if(selectedRow) selectedRow.classList.remove('selected');
+      row.classList.add('selected');
+      selectedRow = row;
+
+      const note = ledgerNotes[field] || "Carica un cedolino per vedere un'osservazione su questa voce.";
+      tagText.textContent = note;
+      tagWrap.style.top = (row.offsetTop + row.offsetHeight/2 - 12) + 'px';
+      tagWrap.classList.add('show');
+    });
+  });
 
   async function analyzeLedger(text){
     const prompt = `Estrai dal seguente testo di un cedolino italiano questi valori: retribuzione lorda, totale straordinari, ore di ROL residue, giorni di ferie residue, netto in busta. Rispondi SOLO con un oggetto JSON valido, senza markdown e senza altro testo, con questa forma esatta:
-{"lordo":"...","straordinari":"...","rol":"...","ferie":"...","netto":"...","nota":"un breve consiglio o osservazione pratica per l'utente, massimo 20 parole, in italiano"}
-Se un valore non è presente nel testo, scrivi "N/D" per quel campo. Ecco il testo del cedolino:
+{"lordo":"...","straordinari":"...","rol":"...","ferie":"...","netto":"...","notes":{"lordo":"breve osservazione pratica su questo valore, max 20 parole, in italiano","straordinari":"...","rol":"...","ferie":"...","netto":"..."}}
+Se un valore non è presente nel testo, scrivi "N/D" per quel campo e nella nota corrispondente scrivi che non è stato trovato nel documento. Ecco il testo del cedolino:
 
 ${text}`;
     const result = await model.generateContent(prompt);
@@ -692,7 +717,8 @@ ${text}`;
 
   function setLedgerLoading(){
     [valLordo, valStraordinari, valRol, valFerie, valNetto].forEach(el => el.textContent = '…');
-    tagText.innerHTML = 'Sto leggendo i dati del tuo cedolino…';
+    ledgerNotes = {};
+    tagWrap.classList.remove('show');
   }
 
   function fillLedger(data){
@@ -701,7 +727,7 @@ ${text}`;
     valRol.textContent = data.rol || 'N/D';
     valFerie.textContent = data.ferie || 'N/D';
     valNetto.textContent = data.netto || 'N/D';
-    tagText.textContent = data.nota || '';
+    ledgerNotes = data.notes || {};
   }
 
   const btn2 = document.getElementById('btn2');
@@ -755,7 +781,8 @@ ${text}`;
         .then(fillLedger)
         .catch(err => {
           [valLordo, valStraordinari, valRol, valFerie, valNetto].forEach(el => el.textContent = 'N/D');
-          tagText.textContent = 'Non sono riuscito ad analizzare automaticamente i dati (' + err.message + ') — puoi comunque chiedermi tutto in chat.';
+          const msg = 'Non sono riuscito ad analizzare automaticamente questo valore (' + err.message + ') — puoi comunque chiedermi tutto in chat.';
+          ledgerNotes = { lordo: msg, straordinari: msg, rol: msg, ferie: msg, netto: msg };
         });
     } catch(err){
       dropzone.classList.remove('filled');
