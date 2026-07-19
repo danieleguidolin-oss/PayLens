@@ -241,6 +241,37 @@
   }
   .tag em{ font-style:normal; color:var(--gold); font-weight:600; }
 
+  .checks-card{
+    background:var(--panel); border:1px solid var(--line); border-radius:18px;
+    padding:16px; margin-bottom:20px;
+  }
+  .checks-head{ display:flex; align-items:center; gap:8px; margin-bottom:4px; }
+  .checks-title{ font-family:'Space Grotesk',sans-serif; font-weight:700; font-size:13.5px; color:var(--ink); }
+  .pro-badge{
+    font-family:'IBM Plex Mono',monospace; font-size:9px; font-weight:700; letter-spacing:.06em;
+    background:var(--gold); color:#151208; border-radius:5px; padding:2px 6px;
+  }
+  .checks-sub{ font-size:11.5px; color:var(--ink-soft); margin:4px 0 2px; }
+  .checks-list{ display:flex; flex-direction:column; }
+  .check-row{
+    display:flex; align-items:flex-start; gap:9px; padding:10px 0; border-bottom:1px solid var(--line);
+    cursor:pointer;
+  }
+  .check-row:last-child{ border-bottom:none; padding-bottom:0; }
+  .check-icon{
+    width:18px; height:18px; border-radius:50%; flex-shrink:0; margin-top:1px;
+    display:flex; align-items:center; justify-content:center; font-size:10px; font-weight:700;
+  }
+  .check-row.ok .check-icon{ background:rgba(57,217,138,.15); color:var(--mint); }
+  .check-row.warning .check-icon{ background:rgba(255,107,107,.15); color:var(--coral); }
+  .check-body{ flex:1; }
+  .check-label{ font-size:12.5px; font-weight:600; color:var(--ink); }
+  .check-detail{
+    font-size:11.5px; color:var(--ink-soft); line-height:1.4; margin-top:3px;
+    max-height:0; overflow:hidden; opacity:0; transition:max-height .2s ease, opacity .2s ease;
+  }
+  .check-row.open .check-detail{ max-height:100px; opacity:1; margin-top:5px; }
+
   .chat{ display:flex; flex-direction:column; gap:10px; flex:1; }
   .bubble{
     max-width:82%; padding:11px 14px; border-radius:16px; font-size:13px; line-height:1.5;
@@ -446,6 +477,16 @@
           <div class="tag" id="tagText"></div>
         </div>
       </div>
+
+      <div class="checks-card" id="checksCard">
+        <div class="checks-head">
+          <span class="checks-title">Controllo automatico</span>
+          <span class="pro-badge">PRO</span>
+        </div>
+        <div class="checks-sub" id="checksSub">Carica un cedolino per avviare il controllo.</div>
+        <div class="checks-list" id="checksList"></div>
+      </div>
+
       <div class="chat" id="chatLog">
         <div class="bubble user">Perché ho preso meno questo mese?</div>
         <div class="bubble ai">Rispetto a giugno mancano <b>63 €</b> di straordinari e c'è stata una giornata di malattia non retribuita al 100%. Il resto <span class="ok">torna</span>.</div>
@@ -718,6 +759,47 @@ ${text}`;
     return JSON.parse(raw);
   }
 
+  const checksCard = document.getElementById('checksCard');
+  const checksSub = document.getElementById('checksSub');
+  const checksList = document.getElementById('checksList');
+
+  async function runChecks(text){
+    const contractLine = selectedCCNL
+      ? `Il CCNL applicabile è: ${selectedCCNL}.`
+      : `L'utente non ha specificato il proprio CCNL: fai controlli generici validi per le buste paga italiane.`;
+    const prompt = `Sei un controllore esperto di buste paga italiane. ${contractLine} Analizza il testo del cedolino qui sotto e verifica se i calcoli sembrano corretti (maggiorazione straordinari, accumulo ferie/ROL, coerenza della tassazione). Individua da 3 a 5 controlli specifici. Rispondi SOLO con un array JSON valido, senza markdown, in questa forma esatta:
+[{"label":"breve nome del controllo, max 6 parole","status":"ok oppure warning","detail":"spiegazione breve, max 25 parole, in italiano"}]
+Usa "warning" solo per un'anomalia concreta o un dato mancante da verificare, altrimenti "ok". Testo del cedolino:
+
+${text}`;
+    const result = await model.generateContent(prompt);
+    let raw = result.response.text().trim();
+    raw = raw.replace(/^```json\s*/i, '').replace(/^```\s*/, '').replace(/```$/, '').trim();
+    return JSON.parse(raw);
+  }
+
+  function setChecksLoading(){
+    checksSub.textContent = 'Sto controllando i calcoli…';
+    checksList.innerHTML = '';
+  }
+
+  function renderChecks(checks){
+    const hasWarning = checks.some(c => c.status === 'warning');
+    checksSub.textContent = hasWarning ? 'Trovate alcune cose da verificare:' : 'Tutto sembra in ordine.';
+    checksList.innerHTML = checks.map((c) => `
+      <div class="check-row ${c.status === 'warning' ? 'warning' : 'ok'}">
+        <div class="check-icon">${c.status === 'warning' ? '!' : '✓'}</div>
+        <div class="check-body">
+          <div class="check-label">${c.label}</div>
+          <div class="check-detail">${c.detail}</div>
+        </div>
+      </div>
+    `).join('');
+    checksList.querySelectorAll('.check-row').forEach(row => {
+      row.addEventListener('click', () => row.classList.toggle('open'));
+    });
+  }
+
   function setLedgerLoading(){
     [valLordo, valStraordinari, valRol, valFerie, valNetto].forEach(el => el.textContent = '…');
     ledgerNotes = {};
@@ -788,6 +870,11 @@ ${text}`;
           const msg = 'Non sono riuscito ad analizzare automaticamente questo valore (' + err.message + ') — puoi comunque chiedermi tutto in chat.';
           ledgerNotes = { lordo: msg, straordinari: msg, rol: msg, ferie: msg, netto: msg };
         });
+
+      setChecksLoading();
+      runChecks(text)
+        .then(renderChecks)
+        .catch(err => { checksSub.textContent = 'Non sono riuscito a completare il controllo (' + err.message + ').'; });
     } catch(err){
       dropzone.classList.remove('filled');
       dzIcon.textContent = '!';
